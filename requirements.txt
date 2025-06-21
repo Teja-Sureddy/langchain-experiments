@@ -1,0 +1,28 @@
+python-dotenv==1.1.0
+
+ollama==0.5.1
+langchain==0.3.25
+langchain-ollama==0.3.3
+langchain-core==0.3.65
+langchain-community==0.3.25
+langchain_experimental==0.3.4
+
+tavily-python==0.7.6  # retriever - web search
+wikipedia==1.4.0  # retriever - knowledge bases
+rank-bm25==0.2.2  # retriever - own
+duckduckgo-search==8.0.4  # tools - web search
+PyMuPDF==1.26.1  # document loaders - pdf
+hf-xet==1.1.3  # embeddings - SentenceTransformer
+faiss-cpu==1.11.0  # vector stores - in-memory
+sqlite-vec==0.1.6  # vector stores - database
+
+# db, vector
+psycopg2-binary==2.9.10
+sqlalchemy==2.0.41
+pgvector==0.4.1
+sentence-transformers==4.1.0
+
+# example 02
+boto3==1.38.37
+openpyxl==3.1.5
+pandas==2.3.0
