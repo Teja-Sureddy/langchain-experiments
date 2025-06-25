@@ -20,17 +20,20 @@ import warnings
 from langchain_core._api.deprecation import LangChainDeprecationWarning
 
 # -------------------- External --------------------
+from langchain_ollama import ChatOllama
 from langchain_community.retrievers import TavilySearchAPIRetriever, WikipediaRetriever
+from langchain.chains.summarize import load_summarize_chain
 
 
-def external(source: str = 'wiki'):
+def external(model: str = 'gemma3', source: str = 'wiki'):
+    llm = ChatOllama(model=model)
     retriever = TavilySearchAPIRetriever() if source == 'tavily' else WikipediaRetriever()
 
     while True:
         prompt = input("\nEnter Prompt: ") or "What is python?"
         docs = retriever.invoke(prompt)
-        for doc in docs:
-            print(textwrap.fill(doc.page_content, width=100))
+        summary = load_summarize_chain(llm).run(docs)
+        print(textwrap.fill(summary, width=100))
 
 
 # -------------------- Own --------------------

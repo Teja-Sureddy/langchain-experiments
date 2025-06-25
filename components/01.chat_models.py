@@ -16,10 +16,12 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 class ChatSession:
     def __init__(self, model: str = 'llama3.2', instruction: str = 'Make the response short') -> None:
         self.llm = ChatOllama(model=model)
-        history = FileChatMessageHistory(file_path='../tmp/history.json')
-        memory = ConversationBufferMemory(chat_memory=history, return_messages=True)
-        memory.chat_memory.messages.append(SystemMessage(instruction))
-        self.conversation = ConversationChain(llm=self.llm, memory=memory, verbose=False)
+        self.history = FileChatMessageHistory(file_path='../tmp/history.json')
+        if not self.history.messages or not isinstance(self.history.messages[0], SystemMessage):
+            self.history.add_message(SystemMessage(content=instruction))
+
+        self.memory = ConversationBufferMemory(chat_memory=self.history, return_messages=True)
+        self.conversation = ConversationChain(llm=self.llm, memory=self.memory, verbose=False)
 
     def start(self):
         while True:

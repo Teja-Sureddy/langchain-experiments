@@ -41,8 +41,7 @@ def write_excel_tool(input_str: str) -> str:
     print(f"\nwrite_excel_tool: {input_str}")
     try:
         params = parse_tool_input(input_str)
-        query = params.get('query')
-        filename = params.get('filename', 'output.xlsx')
+        query, filename = params.get('query'), params.get('filename', 'output.xlsx')
 
         if not query:
             return "Error: 'query' parameter is required"
@@ -50,7 +49,7 @@ def write_excel_tool(input_str: str) -> str:
         df = pd.read_sql_query(query, con=engine)
         filepath = os.path.join(TMP_DIR, filename)
         df.to_excel(filepath, index=False)
-        return f"{filename} written with {len(df)} rows"
+        return f"{filename} written with {len(df)} rows/count"
     except Exception as e:
         return f"Error in write_excel_tool: {e}"
 
@@ -59,9 +58,7 @@ def upload_s3_tool(input_str: str) -> str:
     print(f"\nupload_s3_tool: {input_str}")
     try:
         params = parse_tool_input(input_str)
-
-        filename = params.get('filename', 'output.xlsx')
-        s3_path = params.get('s3_path', 'uploads/')
+        filename, s3_path = params.get('filename', 'output.xlsx'), params.get('s3_path', 'uploads/')
 
         filepath = os.path.join(TMP_DIR, filename)
         key = f"test/{s3_path.strip('/')}/{filename}"
@@ -79,29 +76,23 @@ def send_email_tool(input_str: str) -> str:
     print(f"\nsend_email_tool: {input_str}")
     try:
         params = parse_tool_input(input_str)
-        filename = params.get('filename', 'output.xlsx')
-        email = params.get('email')
-        s3_url = params.get('s3_url')
+        email, count, s3_url = params.get('email'), params.get('count', 0), params.get('s3_url', '')
 
-        if not email or not s3_url:
-            return "Error: 'email' and 's3_url' parameters are required"
-
-        filepath = os.path.join(TMP_DIR, filename)
-        df = pd.read_excel(filepath)
-        row_count = len(df.index)
+        if not email:
+            return "Error: 'email' parameters are required"
 
         msg = EmailMessage()
         msg['Subject'] = 'Your requested data'
         msg['From'] = 'test@langchain.com'
         msg['To'] = email
-        msg.set_content(f"S3 URL: {s3_url}\nRow count: {row_count}")
+        msg.set_content(f"S3 URL: {s3_url}\nRow count: {count}")
 
         with smtplib.SMTP("sandbox.smtp.mailtrap.io", 2525) as server:
             server.starttls()
             server.login(os.environ.get('MAILTRAP_USERNAME'), os.environ.get('MAILTRAP_PASSWORD'))
             server.send_message(msg)
 
-        return f"Email sent to {email} with {row_count} rows and link {s3_url}"
+        return f"Email sent to {email} with {count} rows and link {s3_url}"
     except Exception as e:
         return f"Error in send_email_tool: {e}"
 
@@ -120,9 +111,9 @@ def main(model: str = 'gemma3'):
             func=write_excel_tool,
             description="""
                 Write SQL query results to Excel file. 
-                Input format:
-                query=SELECT * FROM table
-                filename=output.xlsx
+                Input format (separated by ','):
+                query=...
+                filename=...
             """
         ),
         Tool(
@@ -131,31 +122,31 @@ def main(model: str = 'gemma3'):
             description="""
                 Upload file to S3. 
                 Input format: 
-                filename=output.xlsx
-                s3_path=uploads/
+                filename=..., s3_path=...
             """
         ),
         Tool(
             name="send_email",
             func=send_email_tool,
             description="""
-                Send email with file info. 
-                Input format: 
-                filename=output.xlsx
-                email=user@example.com
-                s3_url=https://...
+                Send email with optional file info. 
+                Input format (email is required, count and s3_url are optional): 
+                email=..., count=..., s3_url=...
             """
         ),
     ]
     agent = initialize_agent(tools=tools, llm=llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, verbose=True)
 
     while True:
-        prompt = input("\nEnter Prompt: ") or (
-            "First, generate the sql query to get emails from customers table where id is less than 200011 "
-            "write the file to excel with file name 'test_users.xlsx' "
-            "Then upload the file to S3 with s3 path uploads/ "
-            "Finally, send an email to 'test@gmail.com' with the S3 link and the count."
-        )
+        prompt = input("\nEnter Prompt: ") or ("""
+        Follow these steps precisely:
+
+        1. Generate a SQL query (plain text, not code block) to retrieve all emails from the `customers` table where `id` is less than 200011.
+        2. Save the results to an Excel file named `users.xlsx`.
+        3. Upload the Excel file to the S3 path: `uploads/`.
+        4. Send an email to `test@gmail.com` containing the S3 link to the file and the number of email addresses retrieved.
+        """) or "Send a sample email to `test@gmail.com` with no details and exit." or (
+            "give me the count of `customers` table (use plain text, not code block) and exit")
         response = agent.run(prompt)
         print(textwrap.fill(response, width=100))
 
